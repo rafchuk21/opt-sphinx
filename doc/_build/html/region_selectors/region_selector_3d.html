@@ -15,6 +15,8 @@
     <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Intro to Fenics Solver" href="../fenics_intro.html" />
+    <link rel="prev" title="2D Region Selector" href="region_selector_2d.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
   
@@ -33,6 +35,416 @@
             
   <div class="section" id="d-region-selector">
 <h1>3D Region Selector<a class="headerlink" href="#d-region-selector" title="Permalink to this headline">¶</a></h1>
+<p>This file contains definitions for different 3D regions we may want to select.</p>
+<p>This file is going to require some more vector operations, so we define two helper
+functions to simplify our code later on. We import dolfin and numpy and redefine a larger
+tolerance since there’s greater room for error in these calculations. First, we write a
+function to find the magnitude of the cross product of two vectors:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dolfin</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">tol</span> <span class="o">=</span> <span class="mf">0.000001</span>
+
+<span class="k">def</span> <span class="nf">mag_cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">):</span>
+    <span class="n">v1xv2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1xv2</span><span class="p">,</span><span class="n">v1xv2</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>We also want a function that can check if two vectors are equal without testing for exact
+equality, essentially a version of dolfin’s <code class="docutils literal notranslate"><span class="pre">near()</span></code> but for vectors. For each element in
+the vector, check if it matches the corresponding element in the other. If not, return
+False. If none of them don’t match, then the vectors are equal so we return True:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">vec_near</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">,</span> <span class="n">tol</span> <span class="o">=</span> <span class="n">DOLFIN_EPS</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">v1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">near</span><span class="p">(</span><span class="n">v1</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">v2</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">tol</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">True</span>
+</pre></div>
+</div>
+<div class="section" id="cuboid-region-selector">
+<h2>Cuboid Region Selector<a class="headerlink" href="#cuboid-region-selector" title="Permalink to this headline">¶</a></h2>
+<p>This class selects rectangular cuboid region in any orientation. The cuboids are defined
+using 4 points, where one point is a corner of the cuboid and the others are the three
+points adjacent to it.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GetCuboidRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p3</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p4</span><span class="p">:</span><span class="n">Point</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">p1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p4</span>
+</pre></div>
+</div>
+<p>We now define the three edges from <code class="docutils literal notranslate"><span class="pre">p1</span></code> to <code class="docutils literal notranslate"><span class="pre">p2</span></code>, <code class="docutils literal notranslate"><span class="pre">p3</span></code>, <code class="docutils literal notranslate"><span class="pre">p4</span></code> as the vectors
+<span class="math notranslate nohighlight">\(\vec{u}, \vec{v}, \vec{w}\)</span>, respectively. A point with position vector
+<span class="math notranslate nohighlight">\(\vec{x}\)</span> is inside the region if and only if its projection onto <span class="math notranslate nohighlight">\(\vec{u},
+\vec{v}, \vec{w}\)</span> is greater than <span class="math notranslate nohighlight">\(0\)</span> and less than the lengths of <span class="math notranslate nohighlight">\(\vec{u},
+\vec{v}, \vec{w}\)</span>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+    <span class="n">p1c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">p2c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">p3c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">p4c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+    <span class="n">u</span> <span class="o">=</span> <span class="n">p2c</span> <span class="o">-</span> <span class="n">p1c</span>
+    <span class="n">v</span> <span class="o">=</span> <span class="n">p3c</span> <span class="o">-</span> <span class="n">p1c</span>
+    <span class="n">w</span> <span class="o">=</span> <span class="n">p4c</span> <span class="o">-</span> <span class="n">p1c</span>
+
+    <span class="n">x_vec</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">p1c</span>
+
+    <span class="n">ux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">x_vec</span><span class="p">)</span>
+    <span class="n">vx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">x_vec</span><span class="p">)</span>
+    <span class="n">wx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">x_vec</span><span class="p">)</span>
+
+    <span class="n">um</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">u</span><span class="p">)</span>
+    <span class="n">vm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+    <span class="n">wm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="n">w</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">between</span><span class="p">(</span><span class="n">ux</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">um</span><span class="p">))</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">vx</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">vm</span><span class="p">))</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">wx</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">wm</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="cylindrical-region-selector">
+<h2>Cylindrical Region Selector<a class="headerlink" href="#cylindrical-region-selector" title="Permalink to this headline">¶</a></h2>
+<p>This class selects a cylindrical region as defined by two points representing the centers of the circles at the end of the cylinder and a float representing the radius of the circle. A point <span class="math notranslate nohighlight">\(\vec{x}\)</span> is inside the region if and only if the projection of the vector from one point on the cylinder to <span class="math notranslate nohighlight">\(\vec{x}\)</span> onto the central axis of the cylinder <span class="math notranslate nohighlight">\(\vec{a}\)</span> is between <span class="math notranslate nohighlight">\(0\)</span> and <span class="math notranslate nohighlight">\(|\vec{a}|\)</span> and its distance from <span class="math notranslate nohighlight">\(\vec{a}\)</span> is between <span class="math notranslate nohighlight">\(0\)</span> and the radius.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GetCylindricalRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+        <span class="nb">super</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">p1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
+
+    <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+        <span class="n">p1c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p2c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+        <span class="n">a</span> <span class="o">=</span> <span class="n">p2c</span> <span class="o">-</span> <span class="n">p1c</span>
+        <span class="n">xv</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">p1c</span>
+
+        <span class="n">xva</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">xv</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span>
+
+        <span class="n">xvm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">xv</span><span class="p">,</span> <span class="n">xv</span><span class="p">)</span>
+        <span class="n">am</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span>
+        <span class="n">xam</span> <span class="o">=</span> <span class="p">(</span><span class="n">xva</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span><span class="o">/</span><span class="n">am</span>
+        <span class="n">dsq</span> <span class="o">=</span> <span class="n">xvm</span> <span class="o">-</span> <span class="n">xam</span>
+
+        <span class="k">return</span> <span class="n">between</span><span class="p">(</span><span class="n">dsq</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="o">**</span><span class="mf">2.0</span><span class="p">))</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">xva</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">am</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="planar-boundary-selector">
+<h2>Planar Boundary Selector<a class="headerlink" href="#planar-boundary-selector" title="Permalink to this headline">¶</a></h2>
+<p>This class selects a boundary in the shape of a parallelogram. It can be defined in two ways. One way is to select a coordinate value, say <span class="math notranslate nohighlight">\(x=5\)</span>, and it selects the points that lay in that plane. The other way is to define a parallelogram region using its four corners as points and the class selects the points which lie in-plane to the parallelogram and are within its boundaries. This class can be used to select a fixed end (e.g. by selecting the plane <span class="math notranslate nohighlight">\(x=0\)</span>) or to select a loading region which is only a subsection of a face, for example the last 2mm of the top face of a rectangular beam.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GetPlanarBoundary</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p3</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p4</span><span class="p">:</span><span class="n">Point</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">v12</span> <span class="o">=</span> <span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span> <span class="o">-</span> <span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">v13</span> <span class="o">=</span> <span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">()</span> <span class="o">-</span> <span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">v14</span> <span class="o">=</span> <span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span> <span class="o">-</span> <span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">p1</span>
+</pre></div>
+</div>
+<p>Here, the code figures out which of the points is across from <code class="docutils literal notranslate"><span class="pre">p1</span></code> and stores it as <code class="docutils literal notranslate"><span class="pre">p3</span></code> using the parallelogram law of vector addition. If none of the points are registered as being the one that’s diagonal, the four points do not form a parallelogram.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">vec_near</span><span class="p">(</span><span class="n">v13</span> <span class="o">+</span> <span class="n">v14</span><span class="p">,</span> <span class="n">v12</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span> <span class="c1"># p2 is across from p1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p3</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p2</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p4</span>
+<span class="k">elif</span> <span class="n">vec_near</span><span class="p">(</span><span class="n">v12</span> <span class="o">+</span> <span class="n">v14</span><span class="p">,</span> <span class="n">v13</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span> <span class="c1"># p3 is across from p1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p3</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p4</span>
+<span class="k">elif</span> <span class="n">vec_near</span><span class="p">(</span><span class="n">v12</span> <span class="o">+</span> <span class="n">v13</span><span class="p">,</span> <span class="n">v14</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span> <span class="c1"># p4 is across from p1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p4</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p3</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Points must form a parallelogram&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here we define the <code class="docutils literal notranslate"><span class="pre">inside()</span></code> function. If our test point <code class="docutils literal notranslate"><span class="pre">x</span></code> is out of plane, we immediately know it isn’t inside the region. We then break the parallelogram into four triangles by connecting the vertices with <code class="docutils literal notranslate"><span class="pre">x</span></code>. <code class="docutils literal notranslate"><span class="pre">x</span></code> is inside the region if and only if the areas of the triangles sum up to equal the area of the parallelogram.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+    <span class="n">p1c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">p2c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">p3c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+    <span class="n">p4c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+    <span class="n">v12</span> <span class="o">=</span> <span class="n">p2c</span> <span class="o">-</span> <span class="n">p1c</span>
+    <span class="n">v13</span> <span class="o">=</span> <span class="n">p3c</span> <span class="o">-</span> <span class="n">p1c</span>
+    <span class="n">v14</span> <span class="o">=</span> <span class="n">p4c</span> <span class="o">-</span> <span class="n">p1c</span>
+    <span class="n">v1x</span> <span class="o">-</span> <span class="n">x</span> <span class="o">-</span> <span class="n">p1c</span>
+
+    <span class="c1"># If point is close to p1, return true</span>
+    <span class="k">if</span> <span class="n">near</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1x</span><span class="p">,</span><span class="n">v1x</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+
+    <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v12</span><span class="p">,</span> <span class="n">v13</span><span class="p">)</span>
+
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1x</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1x</span><span class="p">,</span> <span class="n">v1x</span><span class="p">))</span>
+
+    <span class="c1"># If point is not near plane, return false</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">near</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="o">-</span><span class="n">p1c</span><span class="p">,</span> <span class="n">x</span><span class="o">-</span><span class="n">p2c</span><span class="p">,</span> <span class="n">x</span><span class="o">-</span><span class="n">p3c</span><span class="p">,</span> <span class="n">x</span><span class="o">-</span><span class="n">p4c</span><span class="p">])</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">,:])</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">,:])</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">3</span><span class="p">,:])</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">3</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:])</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">/</span> <span class="mf">2.0</span>
+
+    <span class="k">return</span> <span class="n">near</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">v12</span><span class="p">,</span> <span class="n">v14</span><span class="p">),</span> <span class="n">tol</span><span class="p">)</span> <span class="ow">and</span> <span class="n">on_boundary</span>
+</pre></div>
+</div>
+<p>Next we define the methods for defining the region from four points and from a coordinate. The four points method validates the inputs by checking the points are coplanar and non-colinear.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">from_points</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p3</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p4</span><span class="p">:</span><span class="n">Point</span><span class="p">)</span>
+    <span class="n">colinear</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span> <span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span> <span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span> <span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()])</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">4</span><span class="p">):</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">v1</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+        <span class="n">v2</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+
+        <span class="k">if</span> <span class="n">near</span><span class="p">(</span><span class="n">mag_cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span>
+            <span class="n">colinear</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">if</span> <span class="n">colinear</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Points must be non-colinear&quot;</span><span class="p">)</span>
+
+    <span class="n">v12</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+    <span class="n">v13</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="mi">2</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+    <span class="n">v14</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="mi">3</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+
+    <span class="n">coplanar</span> <span class="o">=</span> <span class="n">near</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v12</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v13</span><span class="p">,</span> <span class="n">v14</span><span class="p">)),</span> <span class="mf">0.0</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">coplanar</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Points must be coplanar&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">,</span> <span class="n">p3</span><span class="p">,</span> <span class="n">p4</span><span class="p">)</span>
+
+<span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">from_coord</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dimension</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;x&#39;</span> <span class="ow">or</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;X&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span>\
+                <span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;y&#39;</span> <span class="ow">or</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span>\
+                <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;z&#39;</span> <span class="ow">or</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;Z&#39;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">),</span>\
+                <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Dimension must be &#39;x&#39;, &#39;y&#39;, or &#39;z&#39;&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">area</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">mag_cross</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="complete-code">
+<h2>Complete Code<a class="headerlink" href="#complete-code" title="Permalink to this headline">¶</a></h2>
+<p>The complete code follows and can also be downloaded <a class="reference download internal" download="" href="../_downloads/8cd52a59f5f852811187c43dbd0c279c/region_selector_3d.py"><code class="xref download docutils literal notranslate"><span class="pre">here</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dolfin</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">tol</span> <span class="o">=</span> <span class="o">.</span><span class="mi">000001</span>
+
+<span class="c1"># Finds magnitude of cross product of two vectors</span>
+<span class="k">def</span> <span class="nf">mag_cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">):</span>
+    <span class="n">v1xv2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1xv2</span><span class="p">,</span><span class="n">v1xv2</span><span class="p">))</span>
+
+<span class="c1"># Like near() function, but for vectors</span>
+<span class="k">def</span> <span class="nf">vec_near</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">,</span> <span class="n">tol</span> <span class="o">=</span> <span class="n">DOLFIN_EPS</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">v1</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">near</span><span class="p">(</span><span class="n">v1</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">v2</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">tol</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="kc">True</span>
+
+<span class="c1"># Defines a rectangular cuboid region</span>
+<span class="k">class</span> <span class="nc">GetCuboidRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+    <span class="c1"># Define using 4 points where p2, p3, p4 are distinct and share edges with p1</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p3</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p4</span><span class="p">:</span><span class="n">Point</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">p1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p3</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p4</span>
+
+    <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+        <span class="n">p1c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p2c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p3c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p4c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+        <span class="n">u</span> <span class="o">=</span> <span class="n">p2c</span> <span class="o">-</span> <span class="n">p1c</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">p3c</span> <span class="o">-</span> <span class="n">p1c</span>
+        <span class="n">w</span> <span class="o">=</span> <span class="n">p4c</span> <span class="o">-</span> <span class="n">p1c</span>
+
+        <span class="n">x_vec</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">p1c</span>
+
+        <span class="n">ux</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">u</span><span class="p">,</span> <span class="n">x_vec</span><span class="p">)</span>
+        <span class="n">vx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">x_vec</span><span class="p">)</span>
+        <span class="n">wx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">w</span><span class="p">,</span> <span class="n">x_vec</span><span class="p">)</span>
+
+        <span class="n">um</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="n">u</span><span class="p">)</span>
+        <span class="n">vm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">v</span><span class="p">)</span>
+        <span class="n">wm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">w</span><span class="p">,</span><span class="n">w</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">between</span><span class="p">(</span><span class="n">ux</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">um</span><span class="p">))</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">vx</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">vm</span><span class="p">))</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">wx</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">wm</span><span class="p">))</span>
+
+<span class="c1"># Defines a cylindrical region</span>
+<span class="k">class</span> <span class="nc">GetCylindricalRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+    <span class="c1"># Define using 2 points and a radius</span>
+    <span class="c1"># p1: Center of circle at one end of cylinder</span>
+    <span class="c1"># p2: Center of circle at other end of cylinder</span>
+    <span class="c1"># r: Radius of cylinder</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">p1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
+
+    <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+        <span class="n">p1c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p2c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+        <span class="n">a</span> <span class="o">=</span> <span class="n">p2c</span> <span class="o">-</span> <span class="n">p1c</span> <span class="c1"># primary axis of cylinder</span>
+        <span class="n">xv</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">p1c</span>
+
+        <span class="n">xva</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">xv</span><span class="p">,</span> <span class="n">a</span><span class="p">)</span> <span class="c1"># x*a</span>
+
+        <span class="n">xvm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">xv</span><span class="p">,</span><span class="n">xv</span><span class="p">)</span> <span class="c1"># |x|^2</span>
+        <span class="n">am</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">a</span><span class="p">)</span> <span class="c1"># |a|^2</span>
+        <span class="n">xam</span> <span class="o">=</span> <span class="p">(</span><span class="n">xva</span><span class="o">**</span><span class="mf">2.0</span><span class="p">)</span><span class="o">/</span><span class="n">am</span> <span class="c1"># (x*a)^2/|a|^2</span>
+        <span class="n">dsq</span> <span class="o">=</span> <span class="n">xvm</span> <span class="o">-</span> <span class="n">xam</span> <span class="c1"># d^2 = |x|^2 - proj(x onto a)^2</span>
+
+        <span class="c1"># d^2 &lt;= r^2 &amp;&amp; 0 &lt;= proj(x onto a)/|a| &lt;= |a| -&gt; 0 &lt;= x dot a &lt;= |a|^2</span>
+        <span class="k">return</span> <span class="n">between</span><span class="p">(</span><span class="n">dsq</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="o">**</span><span class="mf">2.0</span><span class="p">))</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">xva</span><span class="p">,</span> <span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="n">am</span><span class="p">))</span>
+
+<span class="c1"># Defines parallelogram boundary in 3-space</span>
+<span class="k">class</span> <span class="nc">GetPlanarBoundary</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p3</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p4</span><span class="p">:</span><span class="n">Point</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">v12</span> <span class="o">=</span> <span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span> <span class="o">-</span> <span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">v13</span> <span class="o">=</span> <span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">()</span> <span class="o">-</span> <span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">v14</span> <span class="o">=</span> <span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span> <span class="o">-</span> <span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">p1</span> <span class="o">=</span> <span class="n">p1</span>
+
+        <span class="c1"># Use parallelogram law of vector addition to check what&#39;s the diagonal</span>
+        <span class="k">if</span> <span class="n">vec_near</span><span class="p">(</span><span class="n">v13</span> <span class="o">+</span> <span class="n">v14</span><span class="p">,</span> <span class="n">v12</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span> <span class="c1"># p2 is across from p1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p3</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p4</span>
+        <span class="k">elif</span> <span class="n">vec_near</span><span class="p">(</span><span class="n">v12</span> <span class="o">+</span> <span class="n">v14</span><span class="p">,</span> <span class="n">v13</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span> <span class="c1"># p3 is across from p1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p3</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p4</span>
+        <span class="k">elif</span> <span class="n">vec_near</span><span class="p">(</span><span class="n">v12</span> <span class="o">+</span> <span class="n">v13</span><span class="p">,</span> <span class="n">v14</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span> <span class="c1"># p4 is across from p1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p2</span> <span class="o">=</span> <span class="n">p2</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p3</span> <span class="o">=</span> <span class="n">p4</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">p4</span> <span class="o">=</span> <span class="n">p3</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Points must form a parallelogram&quot;</span><span class="p">)</span>
+        <span class="c1"># End up with p1, p2, p3, p4 with p1 across from p3 and p2 across from p4</span>
+
+
+
+    <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+        <span class="n">p1c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p2c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p3c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+        <span class="n">p4c</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span>
+
+        <span class="n">v12</span> <span class="o">=</span> <span class="n">p2c</span> <span class="o">-</span> <span class="n">p1c</span>
+        <span class="n">v13</span> <span class="o">=</span> <span class="n">p3c</span> <span class="o">-</span> <span class="n">p1c</span>
+        <span class="n">v14</span> <span class="o">=</span> <span class="n">p4c</span> <span class="o">-</span> <span class="n">p1c</span>
+        <span class="n">v1x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">p1c</span>
+
+        <span class="c1"># If point is close to p1, return true</span>
+        <span class="k">if</span> <span class="n">near</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1x</span><span class="p">,</span><span class="n">v1x</span><span class="p">),</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">True</span>
+
+        <span class="n">N</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v12</span><span class="p">,</span> <span class="n">v13</span><span class="p">)</span>
+
+        <span class="c1"># Point-plane distance</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1x</span><span class="p">,</span> <span class="n">N</span><span class="p">)</span><span class="o">/</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v1x</span><span class="p">,</span><span class="n">v1x</span><span class="p">))</span>
+
+        <span class="c1"># If point is not near plane, return false</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">near</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+
+        <span class="c1"># Check if point is in bounds.</span>
+        <span class="c1"># Sum of areas of triangles between x and each pair of adjacent corners</span>
+        <span class="c1"># should equal the area of the parallelogram.</span>
+        <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">x</span><span class="o">-</span><span class="n">p1c</span><span class="p">,</span> <span class="n">x</span><span class="o">-</span><span class="n">p2c</span><span class="p">,</span> <span class="n">x</span><span class="o">-</span><span class="n">p3c</span><span class="p">,</span> <span class="n">x</span><span class="o">-</span><span class="n">p4c</span><span class="p">])</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">,:])</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">,:])</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">3</span><span class="p">,:])</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">+</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">A</span><span class="p">[</span><span class="mi">3</span><span class="p">,:],</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:])</span>
+        <span class="n">s</span> <span class="o">=</span> <span class="n">s</span> <span class="o">/</span> <span class="mf">2.0</span>
+
+        <span class="k">return</span> <span class="n">near</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">mag_cross</span><span class="p">(</span><span class="n">v12</span><span class="p">,</span> <span class="n">v14</span><span class="p">),</span> <span class="n">tol</span><span class="p">)</span> <span class="ow">and</span> <span class="n">on_boundary</span>
+
+    <span class="c1"># Define a region using the four corners of the parallelogram.</span>
+    <span class="c1"># These points must be:</span>
+    <span class="c1">#   Non-colinear</span>
+    <span class="c1">#   Coplanar</span>
+    <span class="c1">#   Form a parallelogram</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_points</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p3</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p4</span><span class="p">:</span><span class="n">Point</span><span class="p">):</span>
+        <span class="n">colinear</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span><span class="n">p3</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span><span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()]);</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">4</span><span class="p">):</span>
+            <span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">v1</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+            <span class="n">v2</span> <span class="o">=</span> <span class="n">A</span><span class="p">[</span><span class="mi">2</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">A</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+
+            <span class="k">if</span> <span class="n">near</span><span class="p">(</span><span class="n">mag_cross</span><span class="p">(</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">tol</span><span class="p">):</span>
+                <span class="n">colinear</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">if</span> <span class="n">colinear</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Points must be non-colinear&quot;</span><span class="p">)</span>
+
+        <span class="n">v12</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="mi">1</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+        <span class="n">v13</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="mi">2</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+        <span class="n">v14</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="mi">3</span><span class="p">,:]</span> <span class="o">-</span> <span class="n">coords</span><span class="p">[</span><span class="mi">0</span><span class="p">,:]</span>
+
+        <span class="n">coplanar</span> <span class="o">=</span> <span class="n">near</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">v12</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">cross</span><span class="p">(</span><span class="n">v13</span><span class="p">,</span> <span class="n">v14</span><span class="p">)),</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">coplanar</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Points must be coplanar&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">p1</span><span class="p">,</span> <span class="n">p2</span><span class="p">,</span> <span class="n">p3</span><span class="p">,</span> <span class="n">p4</span><span class="p">)</span>
+
+    <span class="c1"># Define a region that is parallel to the x, y, or z planes</span>
+    <span class="c1"># at a specific x, y, or z coordinate.</span>
+    <span class="c1"># Assumes the shape is contained within the +/-10000 square.</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">from_coord</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">dimension</span><span class="p">:</span><span class="nb">str</span><span class="p">,</span> <span class="n">val</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;x&#39;</span> <span class="ow">or</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;X&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span>\
+                    <span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;y&#39;</span> <span class="ow">or</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;Y&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">),</span>\
+                    <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;z&#39;</span> <span class="ow">or</span> <span class="n">dimension</span> <span class="o">==</span> <span class="s1">&#39;Z&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">),</span>\
+                    <span class="n">Point</span><span class="p">(</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="o">-</span><span class="mf">10000.0</span><span class="p">,</span><span class="mf">10000.0</span><span class="p">,</span><span class="n">val</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Dimension must be &#39;x&#39;, &#39;y&#39;, or &#39;z&#39;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Gets area of boundary of parallelogram.</span>
+    <span class="c1"># DOES NOT necessarily get area of selected region on mesh</span>
+    <span class="k">def</span> <span class="nf">area</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">mag_cross</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">p2</span><span class="o">.</span><span class="n">array</span><span class="p">()</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">p4</span><span class="o">.</span><span class="n">array</span><span class="p">()</span><span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">p1</span><span class="o">.</span><span class="n">array</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
 </div>
 
 
@@ -52,8 +464,12 @@
 
 
 <h3>Navigation</h3>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../fenics_region_selector.html">Fenics Region Selector Modules</a></li>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../fenics_region_selector.html">Fenics Region Selector Modules</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="region_selector_2d.html">2D Region Selector</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">3D Region Selector</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../fenics_intro.html">Intro to Fenics Solver</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../basic_optimization.html">Intro to Optimization</a></li>
 </ul>
@@ -62,6 +478,10 @@
 <h3>Related Topics</h3>
 <ul>
   <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../fenics_region_selector.html">Fenics Region Selector Modules</a><ul>
+      <li>Previous: <a href="region_selector_2d.html" title="previous chapter">2D Region Selector</a></li>
+      <li>Next: <a href="../fenics_intro.html" title="next chapter">Intro to Fenics Solver</a></li>
+  </ul></li>
   </ul></li>
 </ul>
 </div>

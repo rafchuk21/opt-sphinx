@@ -1,6 +1,5 @@
 from dolfin import *
 import numpy as np
-# from dolfin_adjoint import *
 
 # Select rectangular region
 class GetRectangularRegion(SubDomain):
@@ -35,6 +34,9 @@ class GetRectangularRegion(SubDomain):
 
 # Select circular region
 class GetCircularRegion(SubDomain):
+    # cx: float x coord of circle center
+    # cy: float y coord of circle center
+    # r: float radius of circle
     def __init__(self, cx:float, cy:float, r:float):
         super().__init__()
         self.cx = cx
@@ -58,18 +60,20 @@ class GetCircularRegion(SubDomain):
         return (x[0] - self.cx)**2.0 + (x[1] - self.cy)**2.0 <= self.r**2.0
 
 # Select linear horizonta/vertical boundary region
-# coord: Constant coordinate of the boundary line
-# range1: Min value along line to select
-# range2: Max value along line to select
-# horizontal: True/False whether the line is horizontal or vertical
 class GetLinearBoundary(SubDomain):
+    # coord: Constant coordinate of the boundary line
+    # range1: Min value along line to select
+    # range2: Max value along line to select
+    # horizontal: True/False whether the line is horizontal or vertical
     def __init__(self, coord:float, range1:float, range2:float, horizontal:bool):
         super().__init__()
         self.coord = coord
         self.range1 = np.minimum(range1,range2)
         self.range2 = np.maximum(range1,range2)
         self.ishorizontal = horizontal
-    
+
+    # p1: Point on one end of line
+    # p2: Point on other end of line
     @classmethod
     def from_points(cls, p1:Point, p2:Point) -> 'GetLinearBoundary':
         x1 = p1.x()
@@ -77,13 +81,19 @@ class GetLinearBoundary(SubDomain):
         x2 = p2.x()
         y2 = p2.y()
 
-        if near(x1, x2): # Vertical Boundary
+        # If x doesn't change, line is vertical
+        if near(x1, x2):
             return cls(x1, y1, y2, False)
-        elif near(y1, y2): # Horizontal Boundary
+        # If y doesn't change, line is horizontal
+        elif near(y1, y2):
             return cls(y1, x1, x2, True)
         else:
             raise ValueError("Linear boundaries must be horizontal or vertical")
-
+        
+    # coord: Constant coordinate of the boundary line
+    # range1: Min value along line to select
+    # range2: Max value along line to select
+    # horizontal: True/False whether the line is horizontal or vertical
     @classmethod
     def from_floats(cls, coord:float, range1:float, range2:float, horizontal:bool) -> 'GetLinearBoundary':
         return cls(coord, range1, range2, horizontal)
@@ -94,7 +104,9 @@ class GetLinearBoundary(SubDomain):
         else:
             return near(x[0], self.coord) and between(x[1], (self.range1, self.range2)) and on_boundary
 
+# Selects a single point
 class SelectPoint(SubDomain):
+    # p: Point to select
     def __init__(self, p:Point):
         super().__init__()
         self.p = p
