@@ -55,6 +55,31 @@ direction:</p>
 <span class="n">mesh</span> <span class="o">=</span> <span class="n">RectangleMesh</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">thickness</span><span class="p">),</span> <span class="n">resX</span><span class="p">,</span> <span class="n">resY</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Now let’s label the mesh. The end of the beam at <span class="math notranslate nohighlight">\(x=0\)</span> should be fixed, and we will apply our load on the top of the beam, but only on the last millimeter farthest from the fixed end.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">fixedRegion</span> <span class="o">=</span> <span class="n">rs</span><span class="o">.</span><span class="n">GetLinearBoundary</span><span class="o">.</span><span class="n">from_points</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="n">thickness</span><span class="p">))</span>
+<span class="n">loadRegion</span> <span class="o">=</span> <span class="n">rs</span><span class="o">.</span><span class="n">GetLinearBoundary</span><span class="o">.</span><span class="n">from_points</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="n">length</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">thickness</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">thickness</span><span class="p">))</span>
+
+<span class="n">boundaries</span> <span class="o">=</span> <span class="n">MeshFunction</span><span class="p">(</span><span class="s1">&#39;size_t&#39;</span><span class="p">,</span> <span class="n">mesh</span><span class="p">,</span> <span class="n">mesh</span><span class="o">.</span><span class="n">topology</span><span class="p">()</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">boundaries</span><span class="o">.</span><span class="n">set_all</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<span class="n">fixedRegion</span><span class="o">.</span><span class="n">mark</span><span class="p">(</span><span class="n">boundaries</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">loadRegion</span><span class="o">.</span><span class="n">mark</span><span class="p">(</span><span class="n">boundaries</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+<span class="n">ds</span> <span class="o">=</span> <span class="n">Measure</span><span class="p">(</span><span class="s1">&#39;ds&#39;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="n">mesh</span><span class="p">,</span> <span class="n">subdomain_data</span><span class="o">=</span><span class="n">boundaries</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>When we write the boundaries information to a file using this code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">folder_name</span> <span class="o">=</span> <span class="s1">&#39;./2d_cantilever_results&#39;</span>
+
+<span class="n">boundaryFile</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">/boundaries.pvd&#39;</span> <span class="o">%</span> <span class="n">folder_name</span><span class="p">)</span>
+<span class="n">boundaryfile</span> <span class="o">&lt;&lt;</span> <span class="n">boundaries</span>
+</pre></div>
+</div>
+<p>We can open the generated .pvd file in ParaView to see our mesh.</p>
+<img alt="../_images/2d_cantilever_beam_mesh_01.png" src="../_images/2d_cantilever_beam_mesh_01.png" />
+<p>We can see that most of the mesh has a 0 value set to it, with the left side set to a value of 1 and the right part of the top edge of the rectangle set to a value of 2. This matches the values that we assigned to the mesh above.</p>
+<p>We can now write our model for the deformation of the beam. There’s some math behind it, but we end up with</p>
+<div class="math notranslate nohighlight">
+\[\text{Find } \boldsymbol{u} \in V \text{ s.t. } \int \langle \boldsymbol{\sigma}(\boldsymbol{u}), \boldsymbol{\varepsilon}(\boldsymbol{v}) \rangle = \int \boldsymbol{f}\cdot \boldsymbol{v} \quad\forall \boldsymbol{v} \in V\]</div>
 </div>
 </div>
 
@@ -76,7 +101,7 @@ direction:</p>
 
 <h3>Navigation</h3>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../fenics_region_selector.html">Fenics Region Selector Module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../fenics_region_selector.html">Fenics Region Selector Modules</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../fenics_intro.html">Intro to Fenics Solver</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">2D Cantilever Beam Simulation</a></li>
 </ul>

@@ -57,3 +57,8 @@ html_static_path = ['_static']
 from pygments.lexers import PythonLexer
 l = PythonLexer()
 l.add_filter('whitespace', tabs="    ")
+
+latex_elements = {
+    'preamble': r'''
+\usepackage{relsize}'''
+    }
