@@ -1,0 +1,296 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>2D Region Selector &#8212; Opt 2019 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="3D Region Selector" href="region_selector_3d.html" />
+    <link rel="prev" title="Fenics Region Selector Modules" href="../fenics_region_selector.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="d-region-selector">
+<h1>2D Region Selector<a class="headerlink" href="#d-region-selector" title="Permalink to this headline">¶</a></h1>
+<p>This file contains definitions for different 2D regions we may want
+to select.</p>
+<div class="section" id="rectangular-region">
+<h2>Rectangular Region<a class="headerlink" href="#rectangular-region" title="Permalink to this headline">¶</a></h2>
+<p>This class selects a rectangular region whose sides are parallel to the
+<span class="math notranslate nohighlight">\(x\)</span> and <span class="math notranslate nohighlight">\(y\)</span> axes. It has two classmethods to allow it to be
+defined with either a pair of points or four floats. In general, it is
+recommended that the classes be created through the classmethods.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GetRectangularRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+</pre></div>
+</div>
+<p>The internal object init function takes four floats representing the two
+opposing corners of the rectangle. It sets <code class="docutils literal notranslate"><span class="pre">x1</span></code> and <code class="docutils literal notranslate"><span class="pre">y1</span></code> to the min
+of the two given values for x and y and <code class="docutils literal notranslate"><span class="pre">x2</span></code> and <code class="docutils literal notranslate"><span class="pre">y2</span></code> to the max so
+that the <code class="docutils literal notranslate"><span class="pre">between()</span></code> function can be used simply.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">x2</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y2</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">x1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">y1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">x2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">y2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This classmethod allows for region declaration using a pair of points.
+Their coordinates are used to call the main init function.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">from_points</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetRectangularRegion&#39;</span><span class="p">:</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">p1</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">p1</span><span class="o">.</span><span class="n">y</span><span class="p">(),</span> <span class="n">p2</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">p2</span><span class="o">.</span><span class="n">y</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>This classmethod gives an alias classmethod for the object init function.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@classmethod</span>
+<span class="k">def</span> <span class="nf">from_floats</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">x2</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y2</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetRectangularRegion&#39;</span><span class="p">:</span>
+    <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">inside()</span></code> method for this class simply returns whether a given <span class="math notranslate nohighlight">\(\vec{x}\)</span> is
+between <code class="docutils literal notranslate"><span class="pre">x1</span></code> and <code class="docutils literal notranslate"><span class="pre">x2</span></code> and between <code class="docutils literal notranslate"><span class="pre">y1</span></code> and <code class="docutils literal notranslate"><span class="pre">y2</span></code>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+    <span class="k">return</span><span class="p">(</span><span class="n">between</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">x2</span><span class="p">))</span> <span class="ow">and</span> \
+           <span class="n">between</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">y2</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="circular-region">
+<h2>Circular Region<a class="headerlink" href="#circular-region" title="Permalink to this headline">¶</a></h2>
+<p>This class selects circular regions. Its internal init method takes three floats describing
+the center of the circle and its radius. It also has two classmethods which can be used to
+instantiate the class, one which takes three floats and one which takes a point and a float.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">class</span> <span class="nc">GetCircularRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cx</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">cy</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cx</span> <span class="o">=</span> <span class="n">cx</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cy</span> <span class="o">=</span> <span class="n">cy</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
+
+        <span class="nd">@classmethod</span>
+        <span class="k">def</span> <span class="nf">from_points</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">c</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetCircularRegion&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">c</span><span class="o">.</span><span class="n">y</span><span class="p">(),</span> <span class="n">r</span><span class="p">)</span>
+
+        <span class="nd">@classmethod</span>
+        <span class="k">def</span> <span class="nf">from_floats</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">cx</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">cy</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetCircularRegion&#39;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+
+        <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">cx</span><span class="p">)</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">+</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">cy</span><span class="p">)</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">&lt;=</span> <span class="n">r</span><span class="o">**</span><span class="mf">2.0</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="linear-boundary">
+<h2>Linear Boundary<a class="headerlink" href="#linear-boundary" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="complete-code">
+<h2>Complete Code<a class="headerlink" href="#complete-code" title="Permalink to this headline">¶</a></h2>
+<p>The complete code follows and can also be downloaded <a class="reference download internal" download="" href="../_downloads/bde569de2f1eaf2d6b173130589a1403/region_selector_2d.py"><code class="xref download docutils literal notranslate"><span class="pre">here</span></code></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">dolfin</span> <span class="k">import</span> <span class="o">*</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="c1"># from dolfin_adjoint import *</span>
+
+<span class="c1"># Select rectangular region</span>
+<span class="k">class</span> <span class="nc">GetRectangularRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+
+   <span class="c1"># x1: x coordinate of one corner</span>
+   <span class="c1"># y1: y coordinate of one corner</span>
+   <span class="c1"># x2: x coordinate of opposite corner</span>
+   <span class="c1"># y2: y coordinate of opposite corner</span>
+   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">x2</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y2</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">x1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">y1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">x2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">y2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+
+   <span class="c1"># p1: Point of one corner of rectangle</span>
+   <span class="c1"># p2: Point of opposite corner of rectangle</span>
+   <span class="nd">@classmethod</span>
+   <span class="k">def</span> <span class="nf">from_points</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetRectangularRegion&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">p1</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">p1</span><span class="o">.</span><span class="n">y</span><span class="p">(),</span> <span class="n">p2</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">p2</span><span class="o">.</span><span class="n">y</span><span class="p">())</span>
+
+   <span class="c1"># x1: x coordinate of one corner</span>
+   <span class="c1"># y1: y coordinate of one corner</span>
+   <span class="c1"># x2: x coordinate of opposite corner</span>
+   <span class="c1"># y2: y coordiante of opposite corner</span>
+   <span class="nd">@classmethod</span>
+   <span class="k">def</span> <span class="nf">from_floats</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">x1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">x2</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">y2</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetRectangularRegion&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">on_boundary</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">between</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">x1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">x2</span><span class="p">))</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">y1</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">y2</span><span class="p">))</span>
+
+<span class="c1"># Select circular region</span>
+<span class="k">class</span> <span class="nc">GetCircularRegion</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">cx</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">cy</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">cx</span> <span class="o">=</span> <span class="n">cx</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">cy</span> <span class="o">=</span> <span class="n">cy</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">r</span> <span class="o">=</span> <span class="n">r</span>
+
+   <span class="c1"># c: Point center of circle</span>
+   <span class="c1"># r: float radius of circle</span>
+   <span class="nd">@classmethod</span>
+   <span class="k">def</span> <span class="nf">from_points</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">c</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetCircularRegion&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">x</span><span class="p">(),</span> <span class="n">c</span><span class="o">.</span><span class="n">y</span><span class="p">(),</span> <span class="n">r</span><span class="p">)</span>
+
+   <span class="c1"># cx: float x coord of circle center</span>
+   <span class="c1"># cy: float y coord of circle center</span>
+   <span class="c1"># r: float radius of circle</span>
+   <span class="nd">@classmethod</span>
+   <span class="k">def</span> <span class="nf">from_floats</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">cx</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">cy</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span><span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetCircularRegion&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">cx</span><span class="p">,</span> <span class="n">cy</span><span class="p">,</span> <span class="n">r</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">on_boundary</span><span class="p">):</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">cx</span><span class="p">)</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">+</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">cy</span><span class="p">)</span><span class="o">**</span><span class="mf">2.0</span> <span class="o">&lt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">r</span><span class="o">**</span><span class="mf">2.0</span>
+
+<span class="c1"># Select linear horizonta/vertical boundary region</span>
+<span class="c1"># coord: Constant coordinate of the boundary line</span>
+<span class="c1"># range1: Min value along line to select</span>
+<span class="c1"># range2: Max value along line to select</span>
+<span class="c1"># horizontal: True/False whether the line is horizontal or vertical</span>
+<span class="k">class</span> <span class="nc">GetLinearBoundary</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coord</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">range1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">range2</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">horizontal</span><span class="p">:</span><span class="nb">bool</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">coord</span> <span class="o">=</span> <span class="n">coord</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">range1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">minimum</span><span class="p">(</span><span class="n">range1</span><span class="p">,</span><span class="n">range2</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">range2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="n">range1</span><span class="p">,</span><span class="n">range2</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">ishorizontal</span> <span class="o">=</span> <span class="n">horizontal</span>
+
+   <span class="nd">@classmethod</span>
+   <span class="k">def</span> <span class="nf">from_points</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">p1</span><span class="p">:</span><span class="n">Point</span><span class="p">,</span> <span class="n">p2</span><span class="p">:</span><span class="n">Point</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetLinearBoundary&#39;</span><span class="p">:</span>
+      <span class="n">x1</span> <span class="o">=</span> <span class="n">p1</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+      <span class="n">y1</span> <span class="o">=</span> <span class="n">p1</span><span class="o">.</span><span class="n">y</span><span class="p">()</span>
+      <span class="n">x2</span> <span class="o">=</span> <span class="n">p2</span><span class="o">.</span><span class="n">x</span><span class="p">()</span>
+      <span class="n">y2</span> <span class="o">=</span> <span class="n">p2</span><span class="o">.</span><span class="n">y</span><span class="p">()</span>
+
+      <span class="k">if</span> <span class="n">near</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">):</span> <span class="c1"># Vertical Boundary</span>
+         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">x1</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="n">near</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">):</span> <span class="c1"># Horizontal Boundary</span>
+         <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">y1</span><span class="p">,</span> <span class="n">x1</span><span class="p">,</span> <span class="n">x2</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Linear boundaries must be horizontal or vertical&quot;</span><span class="p">)</span>
+
+   <span class="nd">@classmethod</span>
+   <span class="k">def</span> <span class="nf">from_floats</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">coord</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">range1</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">range2</span><span class="p">:</span><span class="nb">float</span><span class="p">,</span> <span class="n">horizontal</span><span class="p">:</span><span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s1">&#39;GetLinearBoundary&#39;</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">range1</span><span class="p">,</span> <span class="n">range2</span><span class="p">,</span> <span class="n">horizontal</span><span class="p">)</span>
+
+   <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="n">on_boundary</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">ishorizontal</span><span class="p">:</span>
+         <span class="k">return</span> <span class="n">near</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">range1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2</span><span class="p">))</span> <span class="ow">and</span> <span class="n">on_boundary</span>
+      <span class="k">else</span><span class="p">:</span>
+         <span class="k">return</span> <span class="n">near</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">coord</span><span class="p">)</span> <span class="ow">and</span> <span class="n">between</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">range1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2</span><span class="p">))</span> <span class="ow">and</span> <span class="n">on_boundary</span>
+
+<span class="k">class</span> <span class="nc">SelectPoint</span><span class="p">(</span><span class="n">SubDomain</span><span class="p">):</span>
+   <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">p</span><span class="p">:</span><span class="n">Point</span><span class="p">):</span>
+      <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="n">p</span>
+
+   <span class="k">def</span> <span class="nf">inside</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">on_boundary</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">near</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">x</span><span class="p">())</span> <span class="ow">and</span> <span class="n">near</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">p</span><span class="o">.</span><span class="n">y</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">Opt</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../fenics_region_selector.html">Fenics Region Selector Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">2D Region Selector</a></li>
+<li class="toctree-l2"><a class="reference internal" href="region_selector_3d.html">3D Region Selector</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../fenics_intro.html">Intro to Fenics Solver</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic_optimization.html">Intro to Optimization</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="../fenics_region_selector.html">Fenics Region Selector Modules</a><ul>
+      <li>Previous: <a href="../fenics_region_selector.html" title="previous chapter">Fenics Region Selector Modules</a></li>
+      <li>Next: <a href="region_selector_3d.html" title="next chapter">3D Region Selector</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Luis, Rafi.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.2.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../_sources/region_selectors/region_selector_2d.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

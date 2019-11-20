@@ -12,6 +12,7 @@
     <script type="text/javascript" src="../_static/underscore.js"></script>
     <script type="text/javascript" src="../_static/doctools.js"></script>
     <script type="text/javascript" src="../_static/language_data.js"></script>
+    <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Intro to Optimization" href="../basic_optimization.html" />
@@ -34,6 +35,27 @@
             
   <div class="section" id="d-cantilever-beam-simulation">
 <h1>2D Cantilever Beam Simulation<a class="headerlink" href="#d-cantilever-beam-simulation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p>The simplest mechanical deformation simulation we can run is the 2d cantilever beam. This beam consists
+of a rectangle of constant Young’s modulus, fixed on the left with a downwards load on the right. Let’s
+have this beam be <span class="math notranslate nohighlight">\(16\text{mm}\)</span> long in the x direction and <span class="math notranslate nohighlight">\(3\text{mm}\)</span> thick in the y
+direction:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+<span class="kn">import</span> <span class="nn">region_selector_2d</span> <span class="k">as</span> <span class="nn">rs</span>
+<span class="kn">from</span> <span class="nn">dolfin</span> <span class="k">import</span> <span class="o">*</span>
+
+<span class="n">length</span> <span class="o">=</span> <span class="mf">16.0</span> <span class="c1"># [mm]</span>
+<span class="n">thickness</span> <span class="o">=</span> <span class="mf">3.0</span> <span class="c1"># [mm]</span>
+<span class="n">resolution</span> <span class="o">=</span> <span class="mi">2</span> <span class="c1"># [Nodes/mm]</span>
+
+<span class="n">resX</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">resolution</span> <span class="o">*</span> <span class="n">length</span><span class="p">)</span> <span class="c1"># Num nodes in x axis</span>
+<span class="n">resY</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">resolution</span> <span class="o">*</span> <span class="n">thickness</span><span class="p">)</span> <span class="c1"># Num nodes in y axis</span>
+
+<span class="n">mesh</span> <span class="o">=</span> <span class="n">RectangleMesh</span><span class="p">(</span><span class="n">Point</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">),</span> <span class="n">Point</span><span class="p">(</span><span class="n">length</span><span class="p">,</span> <span class="n">thickness</span><span class="p">),</span> <span class="n">resX</span><span class="p">,</span> <span class="n">resY</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
 </div>
 
 
@@ -54,6 +76,7 @@
 
 <h3>Navigation</h3>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../fenics_region_selector.html">Fenics Region Selector Module</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../fenics_intro.html">Intro to Fenics Solver</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">2D Cantilever Beam Simulation</a></li>
 </ul>
