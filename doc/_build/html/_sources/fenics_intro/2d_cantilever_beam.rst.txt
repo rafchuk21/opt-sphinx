@@ -88,3 +88,11 @@ We can view our results by printing ``u`` to an xdmf file::
 If we open this xdmf file in ParaView, add a Warp By Vector filter, and set the coloring to be by displacement, this is the result we get:
 
 .. image:: 2d_cantilever_beam_results_01.png
+
+-------------
+Complete Code
+-------------
+The complete code follows and can also be downloaded :download:`here </../code/2d_cantilever_beam.py>`.
+
+.. literalinclude:: /../code/2d_cantilever_beam.py
+   :language: python

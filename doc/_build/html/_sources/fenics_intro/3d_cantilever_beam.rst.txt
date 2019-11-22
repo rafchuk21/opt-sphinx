@@ -8,22 +8,25 @@ We can make a 3D cantilever beam simulation almost identically to how we made th
     import region_selector_3d as rs
     from dolfin import *
     
-    length = 16.0
-    width = 5.0
-    thickness = 3.0
-    resolution = 2
+    length = 16.0 # [mm]
+    width = 5.0 # [mm]
+    thickness = 3.0 # [mm]
+    resolution = 2 # [Nodes/mm]
     
-    resX = int(resolution * length)
-    resY = int(resolution * width)
-    resZ = int(resolution * thickness)
+    resX = int(resolution * length) # Num nodes in x axis
+    resY = int(resolution * width) # Num nodes in y axis
+    resZ = int(resolution * thickness) # Num nodes in z axis
     
     mesh = BoxMesh(Point(0.0,0.0,0.0), Point(length, width, thickness), resX, resY, resZ)
 
 We will now label the fixed and load regions using ``region_selector_3d``. We will fix the face at :math:`x=0` and apply the load on the last 1mm on the top face of the beam furthest from the fixed end::
 
     fixedRegion = rs.GetPlanarBoundary.from_coord('x', 0.0)
-    loadRegion = rs.GetPlanarBoundary.from_points(Point(length, 0.0, thickness), Point(length, width, thickness),\
-            Point(length - 1.0, width, thickness), Point(length - 1.0, 0.0, thickness))
+    loadRegion = rs.GetPlanarBoundary.from_points(\
+        Point(length, 0.0, thickness),\
+        Point(length, width, thickness),\
+        Point(length - 1.0, width, thickness),\
+        Point(length - 1.0, 0.0, thickness))
     
     boundaries = MeshFunction('size_t', mesh, mesh.topology.dim()-1)
     boundaries.set_all(0)
@@ -83,12 +86,20 @@ Our simulation indicates that under a :math:`1000 \text{N}` downwards load, a ca
 
 The rainbow colored one is from Inventor. So why do the results disagree, even if slightly? The reason is that the Fenics model's approximation is too broad. If we want to find more exact results, we change the line::
 
-	V = VectorFunctionSpace(mesh, "Lagrange", 1)
+    V = VectorFunctionSpace(mesh, "Lagrange", 1)
 
 to::
 
-	V = VectorFunctionSpace(mesh, "Lagrange", 2)
+    V = VectorFunctionSpace(mesh, "Lagrange", 2)
 
 This makes the simulation take substantially longer to run, but the results now match more closely.
 
 .. image:: 3d_cantilever_beam_results_overlay_02.PNG
+
+-------------
+Complete Code
+-------------
+The complete code follows and can also be downloaded :download:`here </../code/3d_cantilever_beam.py>`.
+
+.. literalinclude:: /../code/3d_cantilever_beam.py
+   :language: python
