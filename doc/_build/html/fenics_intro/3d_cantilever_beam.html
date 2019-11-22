@@ -72,7 +72,52 @@
 </div>
 <p>ParaView lets us see our defined domains.</p>
 <img alt="../_images/3d_cantilever_beam_mesh_01.png" src="../_images/3d_cantilever_beam_mesh_01.png" />
-<p>We can see that the entire near face is marked 1, and the final milimeter of the top face is labeled 2, matching our description.</p>
+<p>We can see that the entire near face is marked 1, and the final milimeter of the top face is labeled 2, matching our description. The rest of the code is nearly identical to the 2D cantilever beam simulation. In this example we’ll be showing how to adjust the load to more closely represent a single load, in this case <span class="math notranslate nohighlight">\(-1000 \text{N}\)</span> in the Z direction, rather than the load distribution that was used in the 2D example. We will define our desired load in <span class="math notranslate nohighlight">\(\text{N}\)</span> and then convert it to <span class="math notranslate nohighlight">\(\frac{\text{N}}{\text{mm}^2}\)</span> by dividing by the area of the load region. This only works when the mesh marked load region and the region selector class match exactly.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">E</span> <span class="o">=</span> <span class="mf">68900.0</span> <span class="c1"># [N/mm^2]</span>
+<span class="n">nu</span> <span class="o">=</span> <span class="mf">0.33</span> <span class="c1"># Poisson&#39;s ratio</span>
+<span class="n">mu</span> <span class="o">=</span> <span class="n">E</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">nu</span><span class="p">))</span>
+<span class="n">lmbda</span> <span class="o">=</span> <span class="n">E</span><span class="o">*</span><span class="n">nu</span> <span class="o">/</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">nu</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">nu</span><span class="p">))</span>
+
+<span class="n">load</span> <span class="o">=</span> <span class="n">Constant</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span><span class="o">-</span><span class="mf">1000.0</span><span class="p">))</span> <span class="c1"># [N]</span>
+<span class="n">loadArea</span> <span class="o">=</span> <span class="n">loadRegion</span><span class="o">.</span><span class="n">area</span><span class="p">()</span>
+<span class="n">scaledLoad</span> <span class="o">=</span> <span class="n">load</span> <span class="o">/</span> <span class="n">loadArea</span>
+
+<span class="k">def</span> <span class="nf">eps</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sym</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="n">u</span><span class="p">))</span>
+
+<span class="k">def</span> <span class="nf">sigma</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">lmbda</span><span class="o">*</span><span class="n">tr</span><span class="p">(</span><span class="n">eps</span><span class="p">(</span><span class="n">u</span><span class="p">))</span> <span class="o">*</span> <span class="n">Identity</span><span class="p">(</span><span class="n">mesh</span><span class="o">.</span><span class="n">topology</span><span class="o">.</span><span class="n">dim</span><span class="p">())</span> <span class="o">+</span> <span class="mf">2.0</span><span class="o">*</span><span class="n">mu</span><span class="o">*</span><span class="n">eps</span>
+
+<span class="n">V</span> <span class="o">=</span> <span class="n">VectorFunctionSpace</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="s2">&quot;Lagrange&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">du</span> <span class="o">=</span> <span class="n">TrialFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">u</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Displacement&quot;</span><span class="p">)</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">TestFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">sigma</span><span class="p">(</span><span class="n">du</span><span class="p">),</span> <span class="n">eps</span><span class="p">(</span><span class="n">v</span><span class="p">))</span><span class="o">*</span><span class="n">dx</span>
+<span class="n">L</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">scaledLoad</span><span class="p">,</span><span class="n">v</span><span class="p">)</span><span class="o">*</span><span class="n">ds</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="n">bc</span> <span class="o">=</span> <span class="n">DirichletBC</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">Constant</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">)),</span> <span class="n">fixedRegion</span><span class="p">)</span>
+
+<span class="n">solve</span><span class="p">(</span><span class="n">a</span> <span class="o">==</span> <span class="n">L</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">bc</span><span class="p">)</span>
+
+<span class="n">u</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;Displacement&quot;</span><span class="p">,</span> <span class="s2">&quot;Displacement&quot;</span><span class="p">)</span>
+<span class="n">xdmf_file</span> <span class="o">=</span> <span class="n">XDMFFile</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">/results.xdmf&#39;</span> <span class="o">%</span> <span class="n">folder_name</span><span class="p">)</span>
+<span class="n">xdmf_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="mf">1.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<img alt="../_images/3d_cantilever_beam_results_01.png" src="../_images/3d_cantilever_beam_results_01.png" />
+<p>Our simulation indicates that under a <span class="math notranslate nohighlight">\(1000 \text{N}\)</span> downwards load, a cantilevered aluminum beam (E = 68900 N/mm^2, nu = 0.33) that is <span class="math notranslate nohighlight">\(16\text{mm}\)</span> long, <span class="math notranslate nohighlight">\(5\text{mm}\)</span> wide, and <span class="math notranslate nohighlight">\(3\text{mm}\)</span> thick will deflect about <span class="math notranslate nohighlight">\(1.5\text{mm}\)</span> downwards. Let’s compare that to Autodesk Inventor’s stress analysis simulation:</p>
+<img alt="../_images/3d_cantilever_beam_results_overlay_01.PNG" src="../_images/3d_cantilever_beam_results_overlay_01.PNG" />
+<p>The rainbow colored one is from Inventor. So why do the results disagree, even if slightly? The reason is that the Fenics model’s approximation is too broad. If we want to find more exact results, we change the line:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">V</span> <span class="o">=</span> <span class="n">VectorFunctionSpace</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="s2">&quot;Lagrange&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>to:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">V</span> <span class="o">=</span> <span class="n">VectorFunctionSpace</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="s2">&quot;Lagrange&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This makes the simulation take substantially longer to run, but the results now match more closely.</p>
+<img alt="../_images/3d_cantilever_beam_results_overlay_02.PNG" src="../_images/3d_cantilever_beam_results_overlay_02.PNG" />
 </div>
 
 
