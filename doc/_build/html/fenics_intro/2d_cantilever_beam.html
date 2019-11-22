@@ -15,7 +15,7 @@
     <script async="async" type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Intro to Optimization" href="../basic_optimization.html" />
+    <link rel="next" title="3D Cantilever Beam Simulation" href="3d_cantilever_beam.html" />
     <link rel="prev" title="Intro to Fenics Solver" href="../fenics_intro.html" />
    
   <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -35,8 +35,6 @@
             
   <div class="section" id="d-cantilever-beam-simulation">
 <h1>2D Cantilever Beam Simulation<a class="headerlink" href="#d-cantilever-beam-simulation" title="Permalink to this headline">¶</a></h1>
-<div class="section" id="introduction">
-<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
 <p>The simplest mechanical deformation simulation we can run is the 2d cantilever beam. This beam consists
 of a rectangle of constant Young’s modulus, fixed on the left with a downwards load on the right. Let’s
 have this beam be <span class="math notranslate nohighlight">\(16\text{mm}\)</span> long in the x direction and <span class="math notranslate nohighlight">\(3\text{mm}\)</span> thick in the y
@@ -77,10 +75,44 @@ direction:</p>
 <p>We can open the generated .pvd file in ParaView to see our mesh.</p>
 <img alt="../_images/2d_cantilever_beam_mesh_01.png" src="../_images/2d_cantilever_beam_mesh_01.png" />
 <p>We can see that most of the mesh has a 0 value set to it, with the left side set to a value of 1 and the right part of the top edge of the rectangle set to a value of 2. This matches the values that we assigned to the mesh above.</p>
-<p>We can now write our model for the deformation of the beam. There’s some math behind it, but we end up with</p>
+<p>We can now write our model for the deformation of the beam. There’s some math behind it, but we end up with the variational form</p>
 <div class="math notranslate nohighlight">
 \[\text{Find } \boldsymbol{u} \in V \text{ s.t. } \int \langle \boldsymbol{\sigma}(\boldsymbol{u}), \boldsymbol{\varepsilon}(\boldsymbol{v}) \rangle = \int \boldsymbol{f}\cdot \boldsymbol{v} \quad\forall \boldsymbol{v} \in V\]</div>
+<p>Which satisfies the boundary conditions, in this case that the displacement in the fixed region is 0. We implement this in Fenics fairly simply after defining some material properties:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">E</span> <span class="o">=</span> <span class="mf">70000.0</span>
+<span class="n">nu</span> <span class="o">=</span> <span class="mf">0.3</span>
+<span class="n">mu</span> <span class="o">=</span> <span class="n">E</span> <span class="o">/</span> <span class="p">(</span><span class="mf">2.0</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">nu</span><span class="p">))</span>
+<span class="n">lmbda</span> <span class="o">=</span> <span class="n">E</span><span class="o">*</span><span class="n">nu</span> <span class="o">/</span> <span class="p">((</span><span class="mf">1.0</span> <span class="o">+</span> <span class="n">nu</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span><span class="o">-</span><span class="mf">2.0</span><span class="o">*</span><span class="n">nu</span><span class="p">))</span>
+
+<span class="n">load</span> <span class="o">=</span> <span class="n">Constant</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span><span class="o">-</span><span class="mf">1000.0</span><span class="p">))</span> <span class="c1"># [N/mm]</span>
+
+<span class="k">def</span> <span class="nf">eps</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">sym</span><span class="p">(</span><span class="n">grad</span><span class="p">(</span><span class="n">u</span><span class="p">))</span>
+
+<span class="k">def</span> <span class="nf">sigma</span><span class="p">(</span><span class="n">u</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">lmbda</span><span class="o">*</span><span class="n">tr</span><span class="p">(</span><span class="n">eps</span><span class="p">(</span><span class="n">u</span><span class="p">))</span> <span class="o">*</span> <span class="n">Identity</span><span class="p">(</span><span class="n">mesh</span><span class="o">.</span><span class="n">topology</span><span class="o">.</span><span class="n">dim</span><span class="p">())</span> <span class="o">+</span> <span class="mf">2.0</span><span class="o">*</span><span class="n">mu</span><span class="o">*</span><span class="n">eps</span>
+
+<span class="n">V</span> <span class="o">=</span> <span class="n">VectorFunctionSpace</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span> <span class="s2">&quot;Lagrange&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">du</span> <span class="o">=</span> <span class="n">TrialFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<span class="n">u</span> <span class="o">=</span> <span class="n">Function</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Displacement&quot;</span><span class="p">)</span>
+<span class="n">v</span> <span class="o">=</span> <span class="n">TestFunction</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+
+<span class="n">a</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">sigma</span><span class="p">(</span><span class="n">du</span><span class="p">),</span> <span class="n">eps</span><span class="p">(</span><span class="n">v</span><span class="p">))</span><span class="o">*</span><span class="n">dx</span>
+<span class="n">L</span> <span class="o">=</span> <span class="n">dot</span><span class="p">(</span><span class="n">load</span><span class="p">,</span><span class="n">v</span><span class="p">)</span><span class="o">*</span><span class="n">ds</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="n">bc</span> <span class="o">=</span> <span class="n">DirichletBC</span><span class="p">(</span><span class="n">V</span><span class="p">,</span> <span class="n">Constant</span><span class="p">((</span><span class="mf">0.0</span><span class="p">,</span><span class="mf">0.0</span><span class="p">)),</span> <span class="n">fixedRegion</span><span class="p">)</span>
+
+<span class="n">solve</span><span class="p">(</span><span class="n">a</span> <span class="o">==</span> <span class="n">L</span><span class="p">,</span> <span class="n">u</span><span class="p">,</span> <span class="n">bc</span><span class="p">)</span>
+</pre></div>
 </div>
+<p>We can view our results by printing <code class="docutils literal notranslate"><span class="pre">u</span></code> to an xdmf file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">u</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="s2">&quot;Displacement&quot;</span><span class="p">,</span> <span class="s2">&quot;Displacement&quot;</span><span class="p">)</span>
+<span class="n">xdmf_file</span> <span class="o">=</span> <span class="n">XDMFFile</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">%s</span><span class="s1">/results.xdmf&#39;</span> <span class="o">%</span> <span class="n">folder_name</span><span class="p">)</span>
+<span class="n">xdmf_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">u</span><span class="p">,</span><span class="mf">1.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>If we open this xdmf file in ParaView, add a Warp By Vector filter, and set the coloring to be by displacement, this is the result we get:</p>
+<img alt="../_images/2d_cantilever_beam_results_01.png" src="../_images/2d_cantilever_beam_results_01.png" />
 </div>
 
 
@@ -104,6 +136,7 @@ direction:</p>
 <li class="toctree-l1"><a class="reference internal" href="../fenics_region_selector.html">Fenics Region Selector Modules</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../fenics_intro.html">Intro to Fenics Solver</a><ul class="current">
 <li class="toctree-l2 current"><a class="current reference internal" href="#">2D Cantilever Beam Simulation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="3d_cantilever_beam.html">3D Cantilever Beam Simulation</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../basic_optimization.html">Intro to Optimization</a></li>
@@ -115,7 +148,7 @@ direction:</p>
   <li><a href="../index.html">Documentation overview</a><ul>
   <li><a href="../fenics_intro.html">Intro to Fenics Solver</a><ul>
       <li>Previous: <a href="../fenics_intro.html" title="previous chapter">Intro to Fenics Solver</a></li>
-      <li>Next: <a href="../basic_optimization.html" title="next chapter">Intro to Optimization</a></li>
+      <li>Next: <a href="3d_cantilever_beam.html" title="next chapter">3D Cantilever Beam Simulation</a></li>
   </ul></li>
   </ul></li>
 </ul>
